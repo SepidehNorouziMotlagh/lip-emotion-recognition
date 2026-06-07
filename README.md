@@ -1,11 +1,96 @@
-# Lip-Motion Emotion Recognition with Privacy Evaluation
+# LipMotion-Emotion-Recognition
 
-This project trains a lightweight **CNN–GRU hybrid model** to recognize six basic emotions (**Anger, Disgust, Fear, Happy, Neutral, Sad**) solely from **inner-lip landmarks** extracted from video.
+Privacy-preserving emotion recognition from inner-lip motion dynamics using CNN and CNN–GRU architectures.
 
-The system is designed to be **privacy-preserving**: it learns *how a person feels* without learning *who they are*.
+---
 
-> **Key Result:**
-> **45.1% emotion recognition accuracy** on unseen speakers, while achieving **0% speaker identification accuracy** on the same speakers — demonstrating that emotion can be recognized while identity remains private.
+## Overview
+
+This project investigates whether emotional expression can be recognized from **inner-lip motion alone** while minimizing biometric identity leakage.
+
+Instead of using full-face imagery, the system operates only on:
+
+* inner-lip landmarks
+* mouth aspect ratio (MAR)
+* temporal lip motion dynamics
+
+This constrained representation reduces access to identity-related facial information while preserving emotion-relevant motion patterns.
+
+The repository includes:
+
+* handcrafted feature baselines
+* 1D-CNN models
+* CNN–GRU temporal architectures
+* speaker-independent evaluation
+* privacy leakage analysis
+
+---
+
+## Key Results
+
+| Model                |  Accuracy |
+| -------------------- | --------: |
+| MLP baseline         |     36.0% |
+| 1D-CNN (60-dim)      |     42.8% |
+| 1D-CNN (62-dim)      |     44.6% |
+| **CNN–GRU (62-dim)** | **45.1%** |
+
+### Privacy Evaluation
+
+| Task                   | Accuracy |
+| ---------------------- | -------: |
+| Emotion recognition    |    45.1% |
+| Speaker identification |     0.0% |
+
+The learned representation preserves emotional information while failing to generalize speaker identity to unseen individuals.
+
+---
+
+# Method
+
+## Feature Extraction
+
+Each frame is represented using:
+
+* 20 inner-lip landmarks (60 dimensions)
+* Mouth Aspect Ratio (MAR)
+* inter-frame motion magnitude
+
+Resulting in a:
+
+```text id="r9q7lq"
+62-dimensional feature vector
+```
+
+Videos are segmented into:
+
+```text id="5vq4m7"
+30-frame windows with 50% overlap
+```
+
+---
+
+## Model Architecture
+
+The best-performing model combines:
+
+* 1D convolutional feature extraction
+* bidirectional GRU temporal modeling
+* fully connected emotion classification
+
+```mermaid id="7pbx6r"
+flowchart LR
+    A[Input: 30 x 62] --> B[Conv1D 62→64]
+    B --> C[BatchNorm + ReLU]
+    C --> D[Conv1D 64→128]
+    D --> E[BatchNorm + ReLU]
+    E --> F[Bidirectional GRU]
+    F --> G[Final Temporal State]
+    G --> H[Linear 256→64]
+    H --> I[Dropout + ReLU]
+    I --> J[Linear 64→6]
+    J --> K[Emotion Prediction]
+```
 
 ---
 
@@ -13,51 +98,14 @@ The system is designed to be **privacy-preserving**: it learns *how a person fee
 
 Dataset: [CREMA-D](https://github.com/CheyneyComputerScience/CREMA-D)
 
-* **7,442** video clips
-* **91** speakers
-* **6** emotions:
+* 7,442 video clips
+* 91 speakers
+* 6 emotions
 
-  * Anger
-  * Disgust
-  * Fear
-  * Happy
-  * Neutral
-  * Sad
+Speaker-independent split:
 
-The dataset is split **speaker-independently**:
-
-* **72 speakers** for training
-* **19 unseen speakers** for testing
-
----
-
-# Pipeline
-
-## 1. Landmark Extraction
-
-MediaPipe Face Landmarker extracts:
-
-* 20 inner-lip landmarks (**60 dimensions**)
-* Mouth Aspect Ratio (**MAR**)
-* Inter-frame lip motion
-
-Resulting in a **62-dimensional feature vector per frame**.
-
-## 2. Windowing
-
-Each video is segmented into:
-
-* **1-second windows**
-* **30 frames per window**
-* **50% overlap**
-
-## 3. Model Training
-
-A lightweight **CNN–GRU hybrid** is trained on the 62-dimensional temporal sequences to predict emotion labels.
-
-## 4. Privacy Evaluation
-
-A separate speaker classifier is trained on the model’s internal embeddings and evaluated on unseen speakers to measure identity leakage.
+* 72 speakers for training
+* 19 speakers for testing
 
 ---
 
@@ -65,105 +113,126 @@ A separate speaker classifier is trained on the model’s internal embeddings an
 
 ## Emotion Recognition
 
-| Model                                    | Test Accuracy |
-| ---------------------------------------- | ------------: |
-| Random baseline                          |        ~16.7% |
-| Majority-class baseline                  |        ~20.0% |
-| MLP on handcrafted MAR/motion statistics |         36.0% |
-| 1D-CNN (60-dim)                          |         42.8% |
-| 1D-CNN (62-dim, +MAR/motion)             |         44.6% |
-| **CNN–GRU (62-dim)**                     |     **45.1%** |
+| Emotion | Precision | Recall |   F1 |
+| ------- | --------: | -----: | ---: |
+| Anger   |      0.50 |   0.48 | 0.49 |
+| Disgust |      0.52 |   0.49 | 0.51 |
+| Fear    |      0.28 |   0.24 | 0.26 |
+| Happy   |      0.55 |   0.74 | 0.63 |
+| Neutral |      0.40 |   0.44 | 0.42 |
+| Sad     |      0.38 |   0.34 | 0.36 |
 
 ---
 
-## Privacy Leakage
+## Key Observations
 
-### Speaker Identification on 19 Unseen Speakers
-
-**Accuracy: 0%**
-
-Chance level:
-
-```text
-1 / 91 ≈ 1.1%
-```
-
-The learned representation does not transfer speaker identity to new individuals.
-The model captures **emotion-related lip dynamics** while discarding cues that would identify the speaker.
+* Happy is recognized strongly due to distinctive mouth motion patterns.
+* Fear remains challenging because it relies heavily on upper-face cues.
+* Temporal modeling improves subtle emotion recognition.
+* Handcrafted MAR/motion features improve performance over raw landmarks alone.
 
 ---
 
-# Requirements
-
-Install dependencies with:
+# Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Required packages:
+Required dependencies:
 
-```text
-mediapipe >= 0.10.0
-opencv-python
+```text id="fx0g4i"
+torch
 numpy
 pandas
-tqdm
-torch
+opencv-python
+mediapipe
 scikit-learn
+tqdm
 ```
 
-You will also need the `face_landmarker.task` model file.
+Download the MediaPipe:
 
-Download it from Google AI / MediaPipe model storage and place it in the appropriate project directory.
+```text id="2rx0yb"
+face_landmarker.task
+```
+
+model and place it in the project directory.
 
 ---
 
 # Usage
 
-## 1. Download CREMA-D
+Place CREMA-D videos inside:
 
-Place all `.mp4` files inside:
-
-```text
+```text id="9ysih6"
 data/raw/
 ```
 
-## 2. Run the preprocessing and training pipeline
-
-Execute the scripts in the following order:
+Run the pipeline:
 
 ```bash
 python src/build_metadata.py
 python src/windowing.py
 python src/split_data.py
+python src/train_model.py
 python src/train_cnn_gru.py
 python src/privacy_leakage.py
 ```
 
 ---
 
-# Output
+# Repository Structure
 
-Trained model weights are saved as:
-
-```text
-data/best_model_cnn_gru.pth
+```text id="9yqbgv"
+.
+├── data/
+├── src/
+├── results/
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-# Additional Models
+# Privacy Perspective
 
-The repository also includes:
+Traditional facial emotion recognition systems often expose substantial biometric information.
 
-* `train_model.py` → pure 1D-CNN baseline
-* `train_mlp_baseline.py` → MLP baseline using handcrafted features
+This project explores whether emotion-related dynamics can remain useful under strong identity constraints by limiting the representation to inner-lip motion only.
+
+The goal is not perfect accuracy, but improved privacy-preserving affective computing.
+
+---
+
+# Future Work
+
+Potential extensions include:
+
+* transformer-based temporal architectures
+* adversarial privacy training
+* multimodal fusion with audio
+* real-time inference
+* cross-dataset evaluation
+* explainability analysis
+
+---
+
+# Citation
+
+```bibtex id="l4gtc5"
+@misc{norouzi2026lipmotion,
+  title={Lip-Motion Emotion Recognition with Privacy Evaluation},
+  author={Sepideh Norouzi Motlagh},
+  year={2026},
+  note={GitHub repository}
+}
+```
 
 ---
 
 # Author
 
-**Sepideh Norouzi Motlagh**
+Sepideh Norouzi Motlagh
 
-GitHub: [@SepidehNorouziMotlagh](https://github.com/SepidehNorouziMotlagh)
+GitHub: @SepidehNorouziMotlagh
