@@ -35,6 +35,11 @@ The repository includes:
 | 1D-CNN (62-dim)      |     44.6% |
 | **CNN–GRU (62-dim)** | **45.1%** |
 
+<p align="center">
+  <img src="results/confusion_matrix.png" alt="Confusion Matrix" width="500"/>
+  <br/><em>Confusion matrix of the best CNN‑GRU model.</em>
+</p>
+
 ### Privacy Evaluation
 
 | Task                   | Accuracy |
