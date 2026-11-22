@@ -1,180 +1,161 @@
-# LipMotion-Emotion-Recognition
+# Lip-Motion Emotion Recognition
 
-Privacy-preserving emotion recognition from inner-lip motion dynamics using CNN and CNN–GRU architectures.
-
----
+Emotion recognition from inner-lip motion dynamics using 1D-CNN and CNN–GRU architectures, with an exploratory analysis of speaker-identity information.
 
 ## Overview
 
-This project investigates whether emotional expression can be recognized from **inner-lip motion alone** while minimizing biometric identity leakage.
+This project investigates whether emotional expressions can be recognized using inner-lip motion dynamics without providing the emotion recognition model with full-face imagery.
 
-Instead of using full-face imagery, the system operates only on:
+Rather than operating on full-face images, the model uses a restricted set of visual features:
 
-* inner-lip landmarks
-* mouth aspect ratio (MAR)
-* temporal lip motion dynamics
+- Inner-lip landmarks
+- Mouth Aspect Ratio (MAR)
+- Inter-frame lip motion magnitude
 
-This constrained representation reduces access to identity-related facial information while preserving emotion-relevant motion patterns.
+The goal is to investigate the extent to which emotion-related information can be retained when the model input is restricted to articulatory features around the mouth.
+
+**Important:** Restricting the model input to inner-lip features does not guarantee speaker anonymity. Motion dynamics may still contain identity-related information, which requires a dedicated privacy evaluation.
 
 The repository includes:
 
-* handcrafted feature baselines
-* 1D-CNN models
-* CNN–GRU temporal architectures
-* speaker-independent evaluation
-* privacy leakage analysis
+- Handcrafted feature baselines
+- 1D-CNN models
+- CNN–GRU temporal architectures
+- Speaker-disjoint emotion recognition evaluation
+- An exploratory speaker-identity classification script
 
----
+## Dataset
 
-## Key Results
+**Dataset:** CREMA-D
 
-| Model                |  Accuracy |
-| -------------------- | --------: |
-| MLP baseline         |     36.0% |
-| 1D-CNN (60-dim)      |     42.8% |
-| 1D-CNN (62-dim)      |     44.6% |
-| **CNN–GRU (62-dim)** | **45.1%** |
+- 7,442 video clips
+- 91 speakers
+- 6 emotion classes
 
-<p align="center">
-  <img src="results/confusion_matrix.png" alt="Confusion Matrix" width="500"/>
-  <br/><em>Confusion matrix of the best CNN‑GRU model.</em>
-</p>
+### Speaker-disjoint split
 
-### Privacy Evaluation
+| Partition | Speakers |
+|---|---:|
+| Training | 72 |
+| Testing | 19 |
 
-| Task                   | Accuracy |
-| ---------------------- | -------: |
-| Emotion recognition    |    45.1% |
-| Speaker identification |     0.0% |
+The emotion recognition models are evaluated on speakers excluded from the training partition.
 
-The learned representation preserves emotional information while failing to generalize speaker identity to unseen individuals.
+## Method
 
----
-
-# Method
-
-## Feature Extraction
+### Feature Extraction
 
 Each frame is represented using:
 
-* 20 inner-lip landmarks (60 dimensions)
-* Mouth Aspect Ratio (MAR)
-* inter-frame motion magnitude
+- 20 inner-lip landmarks (60 dimensions)
+- Mouth Aspect Ratio (MAR)
+- Inter-frame motion magnitude
 
-Resulting in a:
+This produces a 62-dimensional feature vector.
 
-```text id="r9q7lq"
-62-dimensional feature vector
-```
+Videos are segmented into 30-frame windows with 50% overlap.
 
-Videos are segmented into:
+### Model Architectures
 
-```text id="5vq4m7"
-30-frame windows with 50% overlap
-```
+The evaluated models include:
 
----
+- MLP handcrafted-feature baseline
+- 1D-CNN with 60-dimensional input
+- 1D-CNN with 62-dimensional input
+- CNN–GRU with 62-dimensional input
 
-## Model Architecture
+The best-performing configuration combines:
 
-The best-performing model combines:
+1. 1D convolutional feature extraction
+2. Bidirectional GRU temporal modeling
+3. Fully connected emotion classification
 
-* 1D convolutional feature extraction
-* bidirectional GRU temporal modeling
-* fully connected emotion classification
+## Emotion Recognition Results
 
-```mermaid id="7pbx6r"
-flowchart LR
-    A[Input: 30 x 62] --> B[Conv1D 62→64]
-    B --> C[BatchNorm + ReLU]
-    C --> D[Conv1D 64→128]
-    D --> E[BatchNorm + ReLU]
-    E --> F[Bidirectional GRU]
-    F --> G[Final Temporal State]
-    G --> H[Linear 256→64]
-    H --> I[Dropout + ReLU]
-    I --> J[Linear 64→6]
-    J --> K[Emotion Prediction]
-```
+### Overall Accuracy
 
----
+| Model | Accuracy |
+|---|---:|
+| MLP baseline | 36.0% |
+| 1D-CNN (60-dim) | 42.8% |
+| 1D-CNN (62-dim) | 44.6% |
+| CNN–GRU (62-dim) | 45.1% |
 
-# Dataset
+The CNN–GRU model achieved the highest reported accuracy among the evaluated configurations.
 
-Dataset: [CREMA-D](https://github.com/CheyneyComputerScience/CREMA-D)
+### Per-Class Results
 
-* 7,442 video clips
-* 91 speakers
-* 6 emotions
+Results for the best-performing CNN–GRU model:
 
-Speaker-independent split:
+| Emotion | Precision | Recall | F1 |
+|---|---:|---:|---:|
+| Anger | 0.50 | 0.48 | 0.49 |
+| Disgust | 0.52 | 0.49 | 0.51 |
+| Fear | 0.28 | 0.24 | 0.26 |
+| Happy | 0.55 | 0.74 | 0.63 |
+| Neutral | 0.40 | 0.44 | 0.42 |
+| Sad | 0.38 | 0.34 | 0.36 |
 
-* 72 speakers for training
-* 19 speakers for testing
+### Key Observations
 
----
+- Happy achieved the highest F1-score (0.63) among the evaluated emotion classes.
+- Fear had the lowest F1-score (0.26).
+- The 62-dimensional 1D-CNN configuration outperformed the 60-dimensional configuration in the reported comparison.
+- The CNN–GRU achieved a modest improvement over the best 1D-CNN configuration.
 
-# Results
+## Exploratory Speaker-Identity Analysis
 
-## Emotion Recognition
+The repository includes an exploratory speaker-classification script (`src/privacy_leakage.py`) intended to investigate whether speaker information can be recovered from the learned representations.
 
-| Emotion | Precision | Recall |   F1 |
-| ------- | --------: | -----: | ---: |
-| Anger   |      0.50 |   0.48 | 0.49 |
-| Disgust |      0.52 |   0.49 | 0.51 |
-| Fear    |      0.28 |   0.24 | 0.26 |
-| Happy   |      0.55 |   0.74 | 0.63 |
-| Neutral |      0.40 |   0.44 | 0.42 |
-| Sad     |      0.38 |   0.34 | 0.36 |
+However, the initial evaluation has an important methodological limitation.
 
----
+The speaker classifier was trained using identities from the 72-speaker training partition and evaluated on 19 speakers whose identities were absent from its training classes. Consequently, the classifier could not correctly predict the identities of these held-out speakers using its predefined output classes.
 
-## Key Observations
+The resulting 0% speaker-identification accuracy does **not** demonstrate privacy protection or resistance to speaker identification.
 
-* Happy is recognized strongly due to distinctive mouth motion patterns.
-* Fear remains challenging because it relies heavily on upper-face cues.
-* Temporal modeling improves subtle emotion recognition.
-* Handcrafted MAR/motion features improve performance over raw landmarks alone.
+A valid evaluation of identity leakage requires an attack protocol capable of assessing previously unseen speakers, such as speaker verification using held-out identities and genuine/impostor trials.
 
----
+**The current speaker-identification result is therefore excluded from the project's privacy claims.**
 
-# Installation
+## Privacy Motivation and Scope
+
+Conventional facial emotion recognition systems may expose identity-related information through full-face imagery.
+
+This project explores a more restricted visual representation based on inner-lip motion rather than full-face appearance.
+
+However, restricting the input representation is not equivalent to removing biometric identity information. Speaker characteristics may remain encoded in articulatory movement patterns.
+
+The project therefore provides an exploratory investigation into lip-motion-based emotion recognition, rather than a validated speaker-anonymization system.
+
+## Installation
+
+Install the required dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Required dependencies:
+Required dependencies include:
 
-```text id="fx0g4i"
-torch
-numpy
-pandas
-opencv-python
-mediapipe
-scikit-learn
-tqdm
-```
+- PyTorch
+- NumPy
+- Pandas
+- OpenCV
+- MediaPipe
+- scikit-learn
+- tqdm
 
-Download the MediaPipe:
+The repository includes the MediaPipe `face_landmarker.task` model in its root directory.
 
-```text id="2rx0yb"
-face_landmarker.task
-```
-
-model and place it in the project directory.
-
----
-
-# Usage
+## Usage
 
 Place CREMA-D videos inside:
 
-```text id="9ysih6"
+```text
 data/raw/
 ```
 
-Run the pipeline:
+Run the data preparation and training pipeline:
 
 ```bash
 python src/build_metadata.py
@@ -182,62 +163,60 @@ python src/windowing.py
 python src/split_data.py
 python src/train_model.py
 python src/train_cnn_gru.py
-python src/privacy_leakage.py
 ```
 
----
+The exploratory speaker-identity classification script can be found at:
 
-# Repository Structure
+```text
+src/privacy_leakage.py
+```
 
-```text id="9yqbgv"
+Its existing evaluation should not be interpreted as a valid privacy measurement, for the reasons described in the previous section.
+
+## Repository Structure
+
+```text
 .
 ├── data/
-├── src/
 ├── results/
+├── src/
+├── face_landmarker.task
 ├── requirements.txt
 └── README.md
 ```
 
----
+## Limitations
 
-# Privacy Perspective
+- The current emotion recognition results are obtained from a single speaker-disjoint train/test split.
+- Performance varies considerably across emotion classes.
+- The current speaker-classification experiment does not provide valid evidence of identity protection.
+- No validated speaker-verification privacy evaluation has been completed.
+- Generalization to other datasets and recording conditions has not been established.
 
-Traditional facial emotion recognition systems often expose substantial biometric information.
-
-This project explores whether emotion-related dynamics can remain useful under strong identity constraints by limiting the representation to inner-lip motion only.
-
-The goal is not perfect accuracy, but improved privacy-preserving affective computing.
-
----
-
-# Future Work
+## Future Work
 
 Potential extensions include:
 
-* transformer-based temporal architectures
-* adversarial privacy training
-* multimodal fusion with audio
-* real-time inference
-* cross-dataset evaluation
-* explainability analysis
+- Speaker-verification attacks using previously unseen identities
+- Adversarial privacy training
+- Cross-dataset evaluation
+- Transformer-based temporal architectures
+- Explainability analysis
+- Exploration of multimodal audio-visual approaches
 
----
+## Citation
 
-# Citation
-
-```bibtex id="l4gtc5"
+```bibtex
 @misc{norouzi2026lipmotion,
-  title={Lip-Motion Emotion Recognition with Privacy Evaluation},
+  title={Lip-Motion Emotion Recognition with Exploratory Speaker-Identity Analysis},
   author={Sepideh Norouzi Motlagh},
   year={2026},
   note={GitHub repository}
 }
 ```
 
----
-
-# Author
+## Author
 
 Sepideh Norouzi Motlagh
 
-GitHub: @SepidehNorouziMotlagh
+GitHub: [@SepidehNorouziMotlagh](https://github.com/SepidehNorouziMotlagh)
